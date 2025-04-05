@@ -23,7 +23,12 @@ FONT_DIR = "assets\\Fonts"
 on_off = 0
 circle_button_radius = 25
 on_off_button_radius = 45
-forward = backward = left = right = index = little = ["", "", ""]
+forward = ["", "", ""]
+backward = ["", "", ""]
+left = ["", "", ""]
+right = ["", "", ""]
+index = ["", "", ""]
+little = ["", "", ""]
 ser = None  # Serial connection object
 
 # Load key combos
@@ -164,22 +169,21 @@ while running:
         selected_device = available_ports[0] if available_ports else "No device connected"
 
     if on_off == 1 and data_read:
-        #print("Received:", data_read)
         readings = data_read.split(",")
         for i in readings:
-            if i == "forward":
+            if i == "FRONT":
                 press_keys(forward[0], forward[1], forward[2])
-            elif i == "backward":
+            elif i == "BACK":
                 press_keys(backward[0], backward[1], backward[2])
-            elif i == "left":
+            elif i == "LEFT":
                 press_keys(left[0], left[1], left[2])
-            elif i == "right":
+            elif i == "RIGHT":
                 press_keys(right[0], right[1], right[2])
-            elif i == "index":
+            elif i == "INDEX":
                 press_keys(index[0], index[1], index[2])
-            elif i == "little":
+            elif i == "LITTLE":
                 press_keys(little[0], little[1], little[2])
-
+                
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             # save_data()
