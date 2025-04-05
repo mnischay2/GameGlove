@@ -17,12 +17,32 @@ pygame.display.set_icon(pygame.image.load("assets/Images/icon.png"))
 # directory
 IMAGE_DIR = "assets\Images"
 FONT_DIR = "assets\Fonts"
-
 #variables
 on_off=0
 circle_button_radius = 25
 on_off_button_radius = 45
+forward = backward = left = right = index = little = ["","",""]
+#function to load keys combos
+try:
+    file=open("assets/state_data.txt", "r")
+    data=str(file.read()).split('\n')
+    combo.seperate_key_combo(data[0],forward)
+    combo.seperate_key_combo(data[1],backward)
+    combo.seperate_key_combo(data[2],left)
+    combo.seperate_key_combo(data[3],right)
+    combo.seperate_key_combo(data[4],index)
+    combo.seperate_key_combo(data[5],little)
 
+except FileNotFoundError:
+    print("Error: assets/state_data.txt file not found.")
+#function to store key combo whenever closed
+def save_data():
+    combo.save_key_combo(0,forward)
+    combo.save_key_combo(1,backward)
+    combo.save_key_combo(2,left)
+    combo.save_key_combo(3,right)
+    combo.save_key_combo(4,index)
+    combo.save_key_combo(5,little)
 
 #function to load images
 def load_image(filename, size=None):
@@ -37,10 +57,9 @@ def load_image(filename, size=None):
 
 # Load Background Image
 bg_image = load_image("theme.png", (WIDTH, HEIGHT))
-
 def circle_button_size(radius):
     return (radius * 2, radius * 2)
-
+# Load Images and scale them
 scan_img = load_image("scan.png", circle_button_size(circle_button_radius))
 connect_img = load_image("connect.png", circle_button_size(circle_button_radius))
 connected_img = load_image("connected.png", circle_button_size(circle_button_radius))
@@ -51,14 +70,12 @@ def create_placeholder(color, radius):
     img = pygame.Surface(circle_button_size(radius), pygame.SRCALPHA)
     pygame.draw.circle(img, color, (radius, radius), radius)
     return img
-
 if not scan_img:
     scan_img = create_placeholder((0, 255, 0), circle_button_radius)
 if not connect_img:
     connect_img = create_placeholder((255, 0, 0), circle_button_radius)
 if not connected_img:
     connected_img = create_placeholder((0, 0, 255), circle_button_radius)
-
 # UI Element Positions
 label_pos = (20, 30)
 title_pos = (WIDTH // 2, 150)
@@ -66,33 +83,41 @@ scan_pos = (170, 20)
 dropdown_pos = (230, 20)
 connect_pos = (460, 20)
 on_off_pos = (250, 250)
-
 # Device Dropdown settings
 dropdown_width = 210  
 dropdown_height = 50
 dropdown_open = False
-
 # Fonts
 font = pygame.font.Font(None, 27)
 retropix_font = pygame.font.Font(os.path.join(FONT_DIR, "retropix.ttf"), 120)
 justice_font = pygame.font.Font(os.path.join(FONT_DIR, "justice.ttf"), 25)
 barbarian_font = pygame.font.Font(os.path.join(FONT_DIR, "barbarian.ttf"), 120)
-
 # Function to get available serial ports
 def get_serial_ports():
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports] if ports else ["No device connected"]
-
 # Function to check if a device is connected
 def is_device_connected(device):
     return device in get_serial_ports()
-
+# function to read data from the device
+def read_esp32(SERIAL_PORT, BAUD_RATE):
+    try:
+        with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
+            if ser.in_waiting:
+                data = str(ser.readline().decode('latin-1', 'ignore').strip())
+                return data
+    except serial.SerialException as e:
+        print("Error:", e)
+        sys.exit(1)
 # Function to check if a click is inside a circle
 def if_clicked_in_circle(mouse_x, mouse_y, circle_pos, radius):
     return (mouse_x - circle_pos[0] - radius) ** 2 + (mouse_y - circle_pos[1] - radius) ** 2 <= radius ** 2
-
 # Function to press keys
 def press_keys(key1, key2, key3):
+    if key2 == "":
+        key2 = key1
+    elif key3 == "":
+        key3 = key1
     duration = 0.01
     keyboard.press(key1)
     keyboard.press(key2)
@@ -101,7 +126,7 @@ def press_keys(key1, key2, key3):
     keyboard.release(key1)
     keyboard.release(key2)
     keyboard.release(key3)
-    
+
 # Initial Device List & Selection
 available_ports = get_serial_ports()
 selected_device = available_ports[0] if available_ports else "No device connected"
@@ -110,6 +135,7 @@ is_connected = False
 # Main Loop
 running = True
 while running:
+    data_read=read_esp32(selected_device, 9600)
     screen.blit(bg_image, (0, 0)) if bg_image else screen.fill((0, 91, 255))
 
     title_text = retropix_font.render("GameGlove", True, (255, 255, 255))
@@ -143,9 +169,30 @@ while running:
         on_off = 0
         available_ports = get_serial_ports()
         selected_device = available_ports[0] if available_ports else "No device connected"
-
+    
+    if on_off == 1:
+                print(data_read)
+                """readings = str(data_read).split(",")
+                for i in readings:
+                    if i == "forward":
+                        press_keys(forward[0], forward[1], forward[2])
+                    elif i == "backward":
+                        press_keys(backward[0], backward[1], backward[2])
+                    elif i == "left":
+                        press_keys(left[0], left[1], left[2])
+                    elif i == "right":
+                        press_keys(right[0], right[1], right[2])
+                    elif i == "index":
+                        press_keys(index[0], index[1], index[2])
+                    elif i == "little":
+                        press_keys(little[0], little[1], little[2])
+                    """
+                data_read=""
+                readings=""
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            #save_data()
             running = False
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -166,6 +213,7 @@ while running:
                     except serial.SerialException:
                         is_connected = False
 
+
             elif if_clicked_in_circle(mouse_x, mouse_y, on_off_pos, on_off_button_radius):
                 if is_connected:
                     if on_off == 0:
@@ -184,9 +232,11 @@ while running:
                     if option_rect.collidepoint(mouse_x, mouse_y):
                         selected_device = port
                         dropdown_open = False
+   
 
     pygame.display.flip()
 
 pygame.quit()
 sys.exit()
 
+#

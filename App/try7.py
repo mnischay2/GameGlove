@@ -17,13 +17,12 @@ pygame.display.set_icon(pygame.image.load("assets/Images/icon.png"))
 # directory
 IMAGE_DIR = "assets\Images"
 FONT_DIR = "assets\Fonts"
-
 #variables
 on_off=0
 circle_button_radius = 25
 on_off_button_radius = 45
 forward = backward = left = right = index = little = forward_left = forward_right = backward_left = backward_right = ["","",""]
-#function to load keyboard keys
+#function to load keys combos
 try:
     file=open("assets/state_data.txt", "r")
     data=str(file.read()).split('\n')
@@ -37,9 +36,20 @@ try:
     combo.seperate_key_combo(data[7],forward_right)
     combo.seperate_key_combo(data[8],backward_left)
     combo.seperate_key_combo(data[9],backward_right)
-
 except FileNotFoundError:
     print("Error: assets/state_data.txt file not found.")
+#function to store key combo whenever closed
+def save_data():
+    combo.save_key_combo(0,forward)
+    combo.save_key_combo(1,backward)
+    combo.save_key_combo(2,left)
+    combo.save_key_combo(3,right)
+    combo.save_key_combo(4,index)
+    combo.save_key_combo(5,little)
+    combo.save_key_combo(6,forward_left)
+    combo.save_key_combo(7,forward_right)
+    combo.save_key_combo(8,backward_left)
+    combo.save_key_combo(9,backward_right)
 #function to load images
 def load_image(filename, size=None):
     try:
@@ -50,33 +60,27 @@ def load_image(filename, size=None):
     except FileNotFoundError:
         print(f"Error: {filename} not found in 'assets' directory.")
         return None
-
 # Load Background Image
 bg_image = load_image("theme.png", (WIDTH, HEIGHT))
-
 def circle_button_size(radius):
     return (radius * 2, radius * 2)
-
 # Load Images and scale them
 scan_img = load_image("scan.png", circle_button_size(circle_button_radius))
 connect_img = load_image("connect.png", circle_button_size(circle_button_radius))
 connected_img = load_image("connected.png", circle_button_size(circle_button_radius))
 on_img = load_image("on.png", circle_button_size(on_off_button_radius))
 off_img = load_image("off.png", circle_button_size(on_off_button_radius))
-
 # Placeholder images if missing
 def create_placeholder(color, radius):
     img = pygame.Surface(circle_button_size(radius), pygame.SRCALPHA)
     pygame.draw.circle(img, color, (radius, radius), radius)
     return img
-
 if not scan_img:
     scan_img = create_placeholder((0, 255, 0), circle_button_radius)
 if not connect_img:
     connect_img = create_placeholder((255, 0, 0), circle_button_radius)
 if not connected_img:
     connected_img = create_placeholder((0, 0, 255), circle_button_radius)
-
 # UI Element Positions
 label_pos = (20, 30)
 title_pos = (WIDTH // 2, 150)
@@ -84,31 +88,25 @@ scan_pos = (170, 20)
 dropdown_pos = (230, 20)
 connect_pos = (460, 20)
 on_off_pos = (250, 250)
-
 # Device Dropdown settings
 dropdown_width = 210  
 dropdown_height = 50
 dropdown_open = False
-
 # Fonts
 font = pygame.font.Font(None, 27)
 retropix_font = pygame.font.Font(os.path.join(FONT_DIR, "retropix.ttf"), 120)
 justice_font = pygame.font.Font(os.path.join(FONT_DIR, "justice.ttf"), 25)
 barbarian_font = pygame.font.Font(os.path.join(FONT_DIR, "barbarian.ttf"), 120)
-
 # Function to get available serial ports
 def get_serial_ports():
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports] if ports else ["No device connected"]
-
 # Function to check if a device is connected
 def is_device_connected(device):
     return device in get_serial_ports()
-
 # Function to check if a click is inside a circle
 def if_clicked_in_circle(mouse_x, mouse_y, circle_pos, radius):
     return (mouse_x - circle_pos[0] - radius) ** 2 + (mouse_y - circle_pos[1] - radius) ** 2 <= radius ** 2
-
 # Function to press keys
 def press_keys(key1, key2, key3):
     duration = 0.01
@@ -164,6 +162,7 @@ while running:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            save_data()
             running = False
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
