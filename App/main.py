@@ -3,12 +3,11 @@ import serial.tools.list_ports
 import serial
 import sys
 import os
-from pynput.keyboard import Controller, Key
+import keyboard  # NEW: Using keyboard instead of pynput
 import time
 import combo
 
 # Initialize
-keyboard = Controller()
 pygame.init()
 WIDTH, HEIGHT = 600, 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -16,10 +15,10 @@ pygame.display.set_caption("GameGlove Controller")
 pygame.display.set_icon(pygame.image.load("assets/Images/icon.png"))
 
 # Directories
-IMAGE_DIR = "assets\\Images"
-FONT_DIR = "assets\\Fonts"
+IMAGE_DIR = "assets\Images"
+FONT_DIR = "assets\Fonts"
 
-# Variables
+# VARIABLES
 on_off = 0
 circle_button_radius = 25
 on_off_button_radius = 45
@@ -30,9 +29,26 @@ right = ["", "", ""]
 index = ["", "", ""]
 little = ["", "", ""]
 ser = None  # Serial connection object
+dropdown_open = False
+            # UI Element Positions
+label_pos = (20, 25)
+title_pos = (WIDTH // 2, 200)
+scan_pos = (190, 20)
+dropdown_pos = (250, 20)
+connect_pos = (480, 20)
+on_off_pos = (250, 260)
+dropdown_width, dropdown_height = 210, 50
+LONG_PRESS_THRESHOLD = 0.2
+gesture_state = { # Dictionary Gesture state for long press tracking
+    "FRONT": {"active": False, "start_time": 0},
+    "BACK": {"active": False, "start_time": 0},
+    "LEFT": {"active": False, "start_time": 0},
+    "RIGHT": {"active": False, "start_time": 0},
+    "INDEX": {"active": False, "start_time": 0},
+    "LITTLE": {"active": False, "start_time": 0},
+}
 
-# Load key combos
-try:
+try: # Load key combos
     with open("assets/state_data.txt", "r") as file:
         data = file.read().split('\n')
         combo.seperate_key_combo(data[0], forward)
@@ -43,8 +59,8 @@ try:
         combo.seperate_key_combo(data[5], little)
 except FileNotFoundError:
     print("Error: assets/state_data.txt file not found.")
-
-def save_data():
+#FUNCTIONS
+def save_data(): # Save key combos to file
     combo.save_key_combo(0, forward)
     combo.save_key_combo(1, backward)
     combo.save_key_combo(2, left)
@@ -52,14 +68,26 @@ def save_data():
     combo.save_key_combo(4, index)
     combo.save_key_combo(5, little)
 
-# Load image function
-def load_image(filename, size=None):
+def load_image(filename, size=None): # Load image function
     try:
         image = pygame.image.load(os.path.join(IMAGE_DIR, filename)).convert_alpha()
         return pygame.transform.scale(image, size) if size else image
     except FileNotFoundError:
         print(f"Error: {filename} not found in 'assets' directory.")
         return None
+
+def if_clicked_in_circle(mouse_x, mouse_y, circle_pos, radius): # Check if mouse click is in circle
+    return (mouse_x - circle_pos[0] - radius) ** 2 + (mouse_y - circle_pos[1] - radius) ** 2 <= radius ** 2
+
+def get_keys_for_gesture(gesture):
+    return {
+        "FRONT": forward,
+        "BACK": backward,
+        "LEFT": left,
+        "RIGHT": right,
+        "INDEX": index,
+        "LITTLE": little,
+    }.get(gesture, ["", "", ""])
 
 # UI Sizes & Positions
 def circle_button_size(radius): return (radius * 2, radius * 2)
@@ -83,28 +111,17 @@ font = pygame.font.Font(None, 27)
 retropix_font = pygame.font.Font(os.path.join(FONT_DIR, "retropix.ttf"), 120)
 justice_font = pygame.font.Font(os.path.join(FONT_DIR, "justice.ttf"), 25)
 barbarian_font = pygame.font.Font(os.path.join(FONT_DIR, "barbarian.ttf"), 120)
-
-# UI Element Positions
-label_pos = (20, 30)
-title_pos = (WIDTH // 2, 150)
-scan_pos = (170, 20)
-dropdown_pos = (230, 20)
-connect_pos = (460, 20)
-on_off_pos = (250, 250)
-
-dropdown_width, dropdown_height = 210, 50
-dropdown_open = False
-
-# Get ports
-def get_serial_ports():
+orbitron_font = pygame.font.Font(os.path.join(FONT_DIR, "orbitron.ttf"), 120)
+title_font = pygame.font.Font(os.path.join(FONT_DIR, "justice.ttf"), 120)
+body_font = pygame.font.Font(os.path.join(FONT_DIR, "playfair.ttf"), 25)
+def get_serial_ports(): # Get ports
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports] if ports else ["No device connected"]
 
-def is_device_connected(device):
+def is_device_connected(device): #Function to check if device is connected
     return device in get_serial_ports()
 
-# Read data from ESP32 (keep connection open)
-def read_esp32():
+def read_esp32():# Function to read data from ESP32
     global ser
     try:
         if ser and ser.in_waiting:
@@ -115,83 +132,124 @@ def read_esp32():
         print("Serial Error:", e)
         return ""
 
-# Press keys
-def press_keys(key1, key2, key3):
-    if key2 == "": key2 = key1
-    if key3 == "": key3 = key1
-    duration = 0.01
-    keyboard.press(key1)
-    keyboard.press(key2)
-    keyboard.press(key3)
-    time.sleep(duration)
-    keyboard.release(key1)
-    keyboard.release(key2)
-    keyboard.release(key3)
-
-# Circle click
-def if_clicked_in_circle(mx, my, pos, r):
-    return (mx - pos[0] - r)**2 + (my - pos[1] - r)**2 <= r**2
-
 # Initial values
 available_ports = get_serial_ports()
 selected_device = available_ports[0] if available_ports else "No device connected"
 is_connected = False
 
+# Function to display gesture mappings on the application screen
+def draw_gesture_mappings():
+    start_y = 450
+    spacing = 45
+    label_x = 40
+    key_start_x = 200
+    font_size = 25
+    header_font_size = 28
+    box_width = 80
+    box_height = 30
+    box_color = (255, 255, 255)
+    text_color = (0, 0, 0)
+    border_radius = 6
+
+    gesture_font = pygame.font.Font(None, font_size)
+    header_font = pygame.font.Font(None, header_font_size)
+
+    gestures = ["FRONT", "BACK", "LEFT", "RIGHT", "INDEX", "LITTLE"]
+    gesture_data = [forward, backward, left, right, index, little]
+
+    # Draw column headers
+    gestures_header = header_font.render("GESTURES", True, (255, 255, 255))
+    keys_header = header_font.render("KEYS", True, (255, 255, 255))
+    screen.blit(gestures_header, (label_x, start_y - 40))
+    screen.blit(keys_header, (key_start_x, start_y - 40))
+
+    for i, gesture in enumerate(gestures):
+        y = start_y + i * spacing
+
+        # Draw gesture name
+        label = gesture_font.render(gesture, True, (255, 255, 255))
+        screen.blit(label, (label_x, y))
+
+        # Draw key boxes
+        keys = gesture_data[i]
+        for j in range(3):
+            box_x = key_start_x + j * (box_width + 15)
+            box_rect = pygame.Rect(box_x, y - 5, box_width, box_height)
+            pygame.draw.rect(screen, box_color, box_rect, border_radius=6)
+
+            key_text = gesture_font.render(keys[j] if keys[j] else "-", True, text_color)
+            text_rect = key_text.get_rect(center=box_rect.center)
+            screen.blit(key_text, text_rect)
+
+print( "Forward: ", forward[0], forward[1], forward[2])
 # Main loop
 running = True
 while running:
     data_read = read_esp32()
+    #Loding all th UI elements
     screen.blit(load_image("theme.png", (WIDTH, HEIGHT)) or pygame.Surface((WIDTH, HEIGHT)), (0, 0))
+    
+    title_text = title_font.render("GameGlove", True, (255, 255, 255))
+    title_rect = title_text.get_rect(center=title_pos)
+    screen.blit(title_text, title_rect)
 
-    screen.blit(retropix_font.render("GameGlove", True, (255, 255, 255)), retropix_font.render("GameGlove", True, (255, 255, 255)).get_rect(center=title_pos))
-    screen.blit(justice_font.render("Select Device ", True, (255, 255, 255)), label_pos)
+    label_text = body_font.render("Select Device ", True, (255, 255, 255))
+    screen.blit(label_text, label_pos)
 
     screen.blit(scan_img, scan_pos)
-    screen.blit(connected_img if is_connected else connect_img, connect_pos)
+    screen.blit(connect_img if not is_connected else connected_img, connect_pos)
+
     pygame.draw.rect(screen, (50, 50, 50), (*dropdown_pos, dropdown_width, dropdown_height), border_radius=10)
     pygame.draw.rect(screen, (200, 200, 200), (*dropdown_pos, dropdown_width, dropdown_height), 2, border_radius=10)
 
-    screen.blit(font.render(selected_device, True, (255, 255, 255)), (dropdown_pos[0] + 10, dropdown_pos[1] + 10))
-    screen.blit(on_img if on_off == 1 else off_img, on_off_pos)
+    device_text = font.render(selected_device, True, (255, 255, 255))
+    screen.blit(device_text, (dropdown_pos[0] + 10, dropdown_pos[1] + 10))
 
+    screen.blit(on_img if on_off == 1 else off_img, on_off_pos)
+    # display dropdown options
     if dropdown_open:
         for i, port in enumerate(available_ports):
             rect = pygame.Rect(dropdown_pos[0], dropdown_pos[1] + (i + 1) * dropdown_height, dropdown_width, dropdown_height)
             pygame.draw.rect(screen, (70, 70, 70), rect, border_radius=10)
             pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=10)
             screen.blit(font.render(port, True, (255, 255, 255)), (rect.x + 10, rect.y + 10))
-
+   #repeatedly check if the device is connected or not
     if is_connected and not is_device_connected(selected_device):
         is_connected = False
         on_off = 0
         ser = None
         available_ports = get_serial_ports()
         selected_device = available_ports[0] if available_ports else "No device connected"
-
+    # makes all the movement and key presses
     if on_off == 1 and data_read:
         readings = data_read.split(",")
-        for i in readings:
-            if i == "FRONT":
-                press_keys(forward[0], forward[1], forward[2])
-            elif i == "BACK":
-                press_keys(backward[0], backward[1], backward[2])
-            elif i == "LEFT":
-                press_keys(left[0], left[1], left[2])
-            elif i == "RIGHT":
-                press_keys(right[0], right[1], right[2])
-            elif i == "INDEX":
-                press_keys(index[0], index[1], index[2])
-            elif i == "LITTLE":
-                press_keys(little[0], little[1], little[2])
-                
+        current_time = time.time()
+        active_gestures = set(readings)
+
+        for gesture in gesture_state:
+            is_active = gesture in active_gestures
+            was_active = gesture_state[gesture]["active"]
+
+            if is_active and not was_active:
+                gesture_state[gesture]["active"] = True
+                gesture_state[gesture]["start_time"] = current_time
+                keys = get_keys_for_gesture(gesture)
+                for k in keys:
+                    if k: keyboard.press(k)
+
+            elif not is_active and was_active:
+                gesture_state[gesture]["active"] = False
+                duration = current_time - gesture_state[gesture]["start_time"]
+                keys = get_keys_for_gesture(gesture)
+                for k in keys:
+                    if k: keyboard.release(k)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            # save_data()
             running = False
-
+        
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
-
             if if_clicked_in_circle(mx, my, scan_pos, circle_button_radius):
                 available_ports = get_serial_ports()
                 selected_device = available_ports[0] if available_ports else "No device connected"
@@ -204,22 +262,23 @@ while running:
                     except serial.SerialException:
                         is_connected = False
                         ser = None
-
+            
             elif if_clicked_in_circle(mx, my, on_off_pos, on_off_button_radius):
                 if is_connected:
                     on_off = 1 if on_off == 0 else 0
                 else:
                     on_off = 0
-
+            
             elif dropdown_pos[0] < mx < (dropdown_pos[0] + dropdown_width) and dropdown_pos[1] < my < (dropdown_pos[1] + dropdown_height):
                 dropdown_open = not dropdown_open
-
+            
             if dropdown_open:
                 for i, port in enumerate(available_ports):
                     option_rect = pygame.Rect(dropdown_pos[0], dropdown_pos[1] + (i + 1) * dropdown_height, dropdown_width, dropdown_height)
                     if option_rect.collidepoint(mx, my):
                         selected_device = port
                         dropdown_open = False
+    draw_gesture_mappings()
 
     pygame.display.flip()
 
