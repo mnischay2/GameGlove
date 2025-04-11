@@ -39,6 +39,7 @@ connect_pos = (480, 20)
 on_off_pos = (250, 260)
 dropdown_width, dropdown_height = 210, 50
 LONG_PRESS_THRESHOLD = 0.2
+
 gesture_state = { # Dictionary Gesture state for long press tracking
     "FRONT": {"active": False, "start_time": 0},
     "BACK": {"active": False, "start_time": 0},
@@ -114,6 +115,7 @@ barbarian_font = pygame.font.Font(os.path.join(FONT_DIR, "barbarian.ttf"), 120)
 orbitron_font = pygame.font.Font(os.path.join(FONT_DIR, "orbitron.ttf"), 120)
 title_font = pygame.font.Font(os.path.join(FONT_DIR, "justice.ttf"), 120)
 body_font = pygame.font.Font(os.path.join(FONT_DIR, "playfair.ttf"), 25)
+
 def get_serial_ports(): # Get ports
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports] if ports else ["No device connected"]
@@ -181,7 +183,6 @@ def draw_gesture_mappings():
             text_rect = key_text.get_rect(center=box_rect.center)
             screen.blit(key_text, text_rect)
 
-print( "Forward: ", forward[0], forward[1], forward[2])
 # Main loop
 running = True
 while running:
