@@ -4,13 +4,11 @@
 Adafruit_MPU6050 mpu;
 const int flex_index = 35;  // Analog pin for flex sensor
 const int touchSensorPin = 4;  // Digital pin for touch sensor
-
 void setup() {
     Serial.begin(9600);
     Wire.begin();  
     if (!mpu.begin()) {
-        while (1);
-    }
+        while (1);    }
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setGyroRange(MPU6050_RANGE_500_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
@@ -18,7 +16,6 @@ void setup() {
     pinMode(touchSensorPin, INPUT);
     delay(1000);
 }
-
 void loop(){
   String fd="";
  if (digitalRead(touchSensorPin) == HIGH) {  // Only send data if the glove is worn
@@ -31,11 +28,8 @@ void loop(){
     fd+=Tilt;
     if (indexflexValue > 990) {  // Adjust threshold based on testing
       fd+="INDEX";
-    }
-  }
-  else{
-    fd+="OFF";
-  }
+    }}
+ else{    fd+="OFF"; }
   Serial.println(fd); 
   delay(200);
 }

@@ -6,18 +6,15 @@ import os
 import keyboard  # NEW: Using keyboard instead of pynput
 import time
 import combo
-
 # Initialize
 pygame.init()
 WIDTH, HEIGHT = 600, 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("GameGlove Controller")
 pygame.display.set_icon(pygame.image.load("assets/Images/icon.png"))
-
 # Directories
 IMAGE_DIR = "assets\Images"
 FONT_DIR = "assets\Fonts"
-
 # VARIABLES
 on_off = 0
 circle_button_radius = 25
@@ -30,7 +27,7 @@ index = ["", "", ""]
 little = ["", "", ""]
 ser = None  # Serial connection object
 dropdown_open = False
-            # UI Element Positions
+# UI Element Positions
 label_pos = (20, 25)
 title_pos = (WIDTH // 2, 200)
 scan_pos = (190, 20)
@@ -39,7 +36,6 @@ connect_pos = (480, 20)
 on_off_pos = (250, 260)
 dropdown_width, dropdown_height = 210, 50
 LONG_PRESS_THRESHOLD = 0.2
-
 gesture_state = { # Dictionary Gesture state for long press tracking
     "FRONT": {"active": False, "start_time": 0},
     "BACK": {"active": False, "start_time": 0},
@@ -48,7 +44,6 @@ gesture_state = { # Dictionary Gesture state for long press tracking
     "INDEX": {"active": False, "start_time": 0},
     "LITTLE": {"active": False, "start_time": 0},
 }
-
 try: # Load key combos
     with open("assets/state_data.txt", "r") as file:
         data = file.read().split('\n')
@@ -138,7 +133,6 @@ def read_esp32():# Function to read data from ESP32
 available_ports = get_serial_ports()
 selected_device = available_ports[0] if available_ports else "No device connected"
 is_connected = False
-
 # Function to display gesture mappings on the application screen
 def draw_gesture_mappings():
     start_y = 450
@@ -152,60 +146,47 @@ def draw_gesture_mappings():
     box_color = (255, 255, 255)
     text_color = (0, 0, 0)
     border_radius = 6
-
     gesture_font = pygame.font.Font(None, font_size)
     header_font = pygame.font.Font(None, header_font_size)
 
     gestures = ["FRONT", "BACK", "LEFT", "RIGHT", "INDEX", "LITTLE"]
     gesture_data = [forward, backward, left, right, index, little]
-
     # Draw column headers
     gestures_header = header_font.render("GESTURES", True, (255, 255, 255))
     keys_header = header_font.render("KEYS", True, (255, 255, 255))
     screen.blit(gestures_header, (label_x, start_y - 40))
     screen.blit(keys_header, (key_start_x, start_y - 40))
-
     for i, gesture in enumerate(gestures):
         y = start_y + i * spacing
-
         # Draw gesture name
         label = gesture_font.render(gesture, True, (255, 255, 255))
         screen.blit(label, (label_x, y))
-
         # Draw key boxes
         keys = gesture_data[i]
         for j in range(3):
             box_x = key_start_x + j * (box_width + 15)
             box_rect = pygame.Rect(box_x, y - 5, box_width, box_height)
             pygame.draw.rect(screen, box_color, box_rect, border_radius=6)
-
             key_text = gesture_font.render(keys[j] if keys[j] else "-", True, text_color)
             text_rect = key_text.get_rect(center=box_rect.center)
             screen.blit(key_text, text_rect)
-
 # Main loop
 running = True
 while running:
     data_read = read_esp32()
     #Loding all th UI elements
     screen.blit(load_image("theme.png", (WIDTH, HEIGHT)) or pygame.Surface((WIDTH, HEIGHT)), (0, 0))
-    
     title_text = title_font.render("GameGlove", True, (255, 255, 255))
     title_rect = title_text.get_rect(center=title_pos)
     screen.blit(title_text, title_rect)
-
     label_text = body_font.render("Select Device ", True, (255, 255, 255))
     screen.blit(label_text, label_pos)
-
     screen.blit(scan_img, scan_pos)
     screen.blit(connect_img if not is_connected else connected_img, connect_pos)
-
     pygame.draw.rect(screen, (50, 50, 50), (*dropdown_pos, dropdown_width, dropdown_height), border_radius=10)
     pygame.draw.rect(screen, (200, 200, 200), (*dropdown_pos, dropdown_width, dropdown_height), 2, border_radius=10)
-
     device_text = font.render(selected_device, True, (255, 255, 255))
     screen.blit(device_text, (dropdown_pos[0] + 10, dropdown_pos[1] + 10))
-
     screen.blit(on_img if on_off == 1 else off_img, on_off_pos)
     # display dropdown options
     if dropdown_open:
@@ -237,24 +218,20 @@ while running:
                 keys = get_keys_for_gesture(gesture)
                 for k in keys:
                     if k: keyboard.press(k)
-
             elif not is_active and was_active:
                 gesture_state[gesture]["active"] = False
                 duration = current_time - gesture_state[gesture]["start_time"]
                 keys = get_keys_for_gesture(gesture)
                 for k in keys:
                     if k: keyboard.release(k)
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
             if if_clicked_in_circle(mx, my, scan_pos, circle_button_radius):
                 available_ports = get_serial_ports()
                 selected_device = available_ports[0] if available_ports else "No device connected"
-
             elif if_clicked_in_circle(mx, my, connect_pos, circle_button_radius):
                 if selected_device != "No device connected":
                     try:
@@ -263,13 +240,11 @@ while running:
                     except serial.SerialException:
                         is_connected = False
                         ser = None
-            
             elif if_clicked_in_circle(mx, my, on_off_pos, on_off_button_radius):
                 if is_connected:
                     on_off = 1 if on_off == 0 else 0
                 else:
                     on_off = 0
-            
             elif dropdown_pos[0] < mx < (dropdown_pos[0] + dropdown_width) and dropdown_pos[1] < my < (dropdown_pos[1] + dropdown_height):
                 dropdown_open = not dropdown_open
             
