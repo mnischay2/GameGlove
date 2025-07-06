@@ -1,0 +1,6 @@
+up,,
+down,,
+left,,
+right,,
+space,,
+shift,,
